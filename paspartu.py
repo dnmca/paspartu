@@ -2,13 +2,15 @@
 import cv2
 import sys
 import typing
+import shutil
 import textwrap
 
 import numpy as np
 
-from functools import lru_cache
-from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from fire import Fire
+from pathlib import Path
+from functools import lru_cache
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -21,7 +23,6 @@ TEXT_WIDTH = 60
 class Model:
 
     def __init__(self):
-
         self.image_path = None
         self.image_name = None
         self.image = None
@@ -32,8 +33,11 @@ class Model:
 
         self.image_path = Path(image_path)
         self.image_name = self.image_path.name
-        self.target_dir = self.image_path.parent / 'wrapped'
+        self.target_dir = self.image_path.parent / 'target'
+        self.backup_dir = self.image_path.parent / 'backup'
+
         self.target_dir.mkdir(exist_ok=True)
+        self.backup_dir.mkdir(exist_ok=True)
 
         try:
             image = cv2.imread(image_path)
@@ -50,6 +54,9 @@ class Model:
         image_with_text = self.get_image_with_text(text)
         cv2.imwrite(str(self.target_dir / self.image_name), image_with_text)
 
+        if self.image_path.exists():
+            shutil.move(str(self.image_path), str(self.backup_dir / self.image_name))
+
     def get_image(self):
         if self.image is not None:
             return self.image
@@ -60,7 +67,7 @@ class Model:
 
     def get_image_with_text(self, text):
 
-        if self.image is not None and len(text) > 0:
+        if self.image is not None:
             h, w, _ = self.image.shape
 
             lines = []
@@ -121,14 +128,16 @@ class Controller:
         for view in self.views:
             view.update_view(hint, data)
 
-    def on_frame_update(self):
-        self.update_views('frame', None)
+    def update_text(self, text):
+        self.update_views(hint='frame', data={'text': text})
 
-    def open_image(self, image_path):
+    def on_frame_update(self, text):
+        self.update_views('frame', data={'text': text})
+
+    def open_image(self, image_path, text):
         status = self.model.open_image(image_path)
-        print(status)
         if status:
-            self.on_frame_update()
+            self.on_frame_update(text)
 
     def save_image(self, text):
         self.model.save_image(text)
@@ -150,7 +159,7 @@ class Application(QApplication):
 class UI(QObject):
 
     def setup_ui(self, main_window):
-        main_window.setWindowTitle('Wrapper')
+        main_window.setWindowTitle('Paspartu')
         main_window.resize(1920, 1080)
 
         self.central_widget = QWidget(main_window)
@@ -172,7 +181,7 @@ class UI(QObject):
         self.open_image.setObjectName('open_image')
 
         self.save_image = QPushButton(self.menu)
-        self.save_image.setGeometry(QRect(300, 0, 120, 45))
+        self.save_image.setGeometry(QRect(160, 0, 120, 45))
         self.save_image.setObjectName('save_image')
 
         font = QFont()
@@ -187,8 +196,6 @@ class UI(QObject):
         self.image_view.setStyleSheet("background: transparent")
 
         self.text_box = QTextEdit(self.main)
-        self.text_box.setLineWrapMode(QTextEdit.FixedColumnWidth)
-        self.text_box.setLineWrapColumnOrWidth(TEXT_WIDTH)
         self.text_box.setObjectName(('textBox'))
         self.text_box.setMaximumHeight(120)
         self.text_box.setFont(font)
@@ -228,8 +235,8 @@ class UI(QObject):
 
     def retranslate_ui(self):
         _translate = QCoreApplication.translate
-        self.open_image.setText(_translate('Wrapper', 'Open image'))
-        self.save_image.setText(_translate('Wrapper', 'Save image'))
+        self.open_image.setText(_translate('Wrapper', 'Open'))
+        self.save_image.setText(_translate('Wrapper', 'Save'))
 
 
 class ImageView(QGraphicsView):
@@ -252,37 +259,29 @@ class ImageView(QGraphicsView):
 
     def update_view(self, hint, data):
         if hint == "frame":
-            self.img = self.model.get_image()
-            h, w, _ = self.img.shape
-            self.set_image(self.img)
-            self.setSceneRect(QRectF(0.0, 0.0, w, h))
+            self.img = self.model.get_image_with_text(data['text'])
         elif hint == "zoom_in":
-            if self.img is not None:
-                if self.scale < 3.0:
-                    self.scale += 0.1
-                    h, w = self.img.shape[0:2]
-                    h, w = int(h * self.scale), int(w * self.scale)
-                    rescaled = cv2.resize(self.img, (w, h))
-                    self.set_image(rescaled)
-                    self.setSceneRect(QRectF(0.0, 0.0, w, h))
+            if self.scale < 3.0:
+                self.scale += 0.1
         elif hint == 'zoom_out':
-            if self.img is not None:
-                if self.scale > 0.2:
-                    self.scale -= 0.1
-                    h, w = self.img.shape[0:2]
-                    h, w = int(h * self.scale), int(w * self.scale)
-                    rescaled = cv2.resize(self.img, (w, h))
-                    self.set_image(rescaled)
-                    self.setSceneRect(QRectF(0.0, 0.0, w, h))
+            if self.scale > 0.2:
+                self.scale -= 0.1
+
+        if self.img is not None:
+            h, w, _ = self.img.shape
+            h, w = int(h * self.scale), int(w * self.scale)
+            rescaled = cv2.resize(self.img, (w, h))
+            self.set_image(rescaled)
+            self.setSceneRect(QRectF(0.0, 0.0, w, h))
 
     def set_image(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         height, width, colors = image.shape
-        bytesPerLine = 3 * width
-        qimage = QImage(image.data, width, height, bytesPerLine, QImage.Format_RGB888)
+        bytes_per_line = 3 * width
+        q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
         self.scene.clear()
-        pixmap = self.scene.addPixmap(QPixmap.fromImage(qimage))
+        pixmap = self.scene.addPixmap(QPixmap.fromImage(q_image))
         pixmap.setTransformationMode(Qt.SmoothTransformation)
 
 
@@ -304,6 +303,12 @@ class MainWindowUI(UI):
         self.zoom_in.activated.connect(self.on_zoom_in)
         self.zoom_out.activated.connect(self.on_zoom_out)
 
+        self.text_box.textChanged.connect(self.text_changed)
+
+    def text_changed(self):
+        text = self.text_box.toPlainText()
+        self.controller.update_text(text)
+
     @pyqtSlot()
     def on_zoom_in(self):
         self.controller.on_zoom_in()
@@ -324,7 +329,7 @@ class MainWindowUI(UI):
             options=options)
 
         if image_path:
-            self.controller.open_image(image_path)
+            self.controller.open_image(image_path, text=self.text_box.toPlainText())
 
     def save_image_clicked(self):
         text = self.text_box.toPlainText()
@@ -339,19 +344,25 @@ class MainWindowUI(UI):
     def update_view(self, hint, data=None):
         pass
 
-    def keyPressEvent(self, e):
-        pass
 
+def main(text_width=60):
+    """
+    Add a passe-partout for your photo without losing quality
 
-def main():
+    :param text_width: maximum number of characters per line in caption area
+    """
+
+    global TEXT_WIDTH
+    TEXT_WIDTH = text_width
+
     app = Application(sys.argv)
     app.setStyle('Oxygen')
     main_window = QMainWindow()
     ui = MainWindowUI()
     ui.setup_ui(main_window)
-    app.key_pressed_signal.connect(ui.keyPressEvent)
     main_window.show()
     sys.exit(app.exec_())
 
+
 if __name__ == '__main__':
-    main()
+    Fire(main)

@@ -1,0 +1,6 @@
+fire==0.3.1
+numpy==1.18.1
+opencv_python==4.1.2.30
+opencv_contrib_python==4.2.0.34
+Pillow==8.2.0
+PyQt5==5.15.4
