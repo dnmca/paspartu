@@ -105,17 +105,19 @@ class Model:
             text_box_height = vertical_offset  + font_size * len(lines)
 
             text_box = self.background(height=text_box_height, width=w, color=BACKGROUND_COLOR)
-            text_box = self.put_text(text_box, '\n'.join([x for x in lines]),
-                                     x=horizontal_offset // 2, y=vertical_offset // 2,
-                                     font=font, color=TEXT_COLOR)
+            text_box = self.put_text(
+                text_box, '\n'.join([x for x in lines]),
+                x=horizontal_offset // 2,
+                y=vertical_offset // 2,
+                font=font,
+                color=TEXT_COLOR
+            )
 
             border = int(h * 0.025)
-            # header = np.ones(shape=(border, w, 3), dtype=np.uint8) * 255
             header = self.background(height=border, width=w, color=BACKGROUND_COLOR)
             captioned = np.vstack([header, self.image, text_box])
 
             oh, ow, _ = captioned.shape
-            # side = np.ones(shape=(oh, border, 3), dtype=np.uint8) * 255
             side = self.background(height=oh, width=border, color=BACKGROUND_COLOR)
             bordered = np.hstack([side, captioned, side])
             return bordered
@@ -293,7 +295,6 @@ class ImageView(QGraphicsView):
         height, width, colors = image.shape
         bytes_per_line = 3 * width
         q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
-
         self.scene.clear()
         pixmap = self.scene.addPixmap(QPixmap.fromImage(q_image))
         pixmap.setTransformationMode(Qt.SmoothTransformation)
