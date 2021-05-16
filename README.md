@@ -36,7 +36,7 @@ people who can tell these stories are still alive.
 This tool allows you to add arbitrary-size caption to your photos without losing 
 image quality.
 
-<img src="./images/captioned.jpg" alt="drawing" width="400"/>
+<img src="./images/modified.jpg" alt="drawing" width="400"/>
 
 Functionality:
 
