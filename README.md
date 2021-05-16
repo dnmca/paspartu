@@ -1,6 +1,6 @@
 # Paspartu - preserve the stories behind your old photos
 
-#### Motivation
+### Motivation
 
 Few month ago I started to digitize by old family photo albums.
 Those old photos have been glued to the album pages and when I pilled them off, 
@@ -31,7 +31,7 @@ people who can tell these stories are still alive.
  This led to the creation of this tool. I wanted it to be simple, fast and offline. So in case you consider its 
  functionality limited, it is so by design.  
 
-#### Tool
+### Tool
 
 This tool allows you to add arbitrary-size caption to your photos without losing 
 image quality.
@@ -47,7 +47,7 @@ Functionality:
 - Font size is controlled by `TEXT_WIDTH` constant, which defines # of characters per line
 - Font face is controlled by the `FONT_PATH` constant. You can use your custom font if you would like.
 
-#### Workflow
+### Workflow
 
 0) Prerequisites:
     ```
@@ -68,7 +68,8 @@ Functionality:
 > 2 folders are created in image parent directory: `target` and `backup`. 
 > Former for captioned images and later for original ones.
 
-#### Contribution
+### Contribution
 
 Feel free to contribute to this project if you like it.
-Any suggestions and comments are appreciated.
+Any suggestions, comments or bug reports are appreciated.
+
