@@ -24,7 +24,7 @@ Besides messages on the back of the photographs, the most important "photo metad
 memories of your elder relatives. But memory is fragile thing, as well as human life. 
 It is lost if it is not preserved in time.
 
-I came to me that it's really important to preserve down old photos' stories for my ancestors 
+I came to me that it's really important to preserve old photos' stories for my ancestors 
 (or other relatives interested in our family history). And I wanted to do it as soon as possible, while
 people who can tell these stories are still alive.
  
