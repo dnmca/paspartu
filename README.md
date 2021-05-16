@@ -44,8 +44,10 @@ Functionality:
 - Supported formats: PNG and JPEG
 - Original image quality is preserved
 - Original image is backuped
-- Font size is controlled by `TEXT_WIDTH` constant, which defines # of characters per line
-- Font face is controlled by the `FONT_PATH` constant. You can use your custom font if you would like.
+- Tune `TEXT_WIDTH` (# of characters per line) constant to control font size
+- Change `FONT_PATH` constant to use your custom font
+- Tune font color with `TEXT_COLOR` (RGB)
+- Tune background color with `BACKGROUND_COLOR` (RGB)
 
 ### Workflow
 

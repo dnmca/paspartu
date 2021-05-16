@@ -19,6 +19,8 @@ from PyQt5.QtGui import *
 
 TEXT_WIDTH = 60
 FONT_PATH = 'fonts/Ubuntu_Mono/UbuntuMono-Regular.ttf'
+BACKGROUND_COLOR = (255, 253, 232)
+TEXT_COLOR = (0, 0, 0)
 
 
 class Model:
@@ -66,6 +68,13 @@ class Model:
     def get_font(self, font_size):
         return ImageFont.truetype(FONT_PATH, font_size)
 
+    @staticmethod
+    def background(width, height, color: (int, int, int)):
+        img = np.ones(shape=(height, width, 3), dtype=np.uint8)
+        for i, c in enumerate(color):
+            img[:, :, i] = img[:, :, i] * c
+        return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
     def get_image_with_text(self, text):
 
         if self.image is not None:
@@ -90,20 +99,24 @@ class Model:
             font = self.get_font(font_size)
 
             text_width = font.getsize('x' * TEXT_WIDTH)[0]
-            diff = w - text_width
+            horizontal_offset = w - text_width
+            vertical_offset = font_size
 
-            text_box_height = diff + font_size * len(lines)
-            text_box = np.ones(shape=(text_box_height, w, 3), dtype=np.uint8) * 255
+            text_box_height = vertical_offset  + font_size * len(lines)
+
+            text_box = self.background(height=text_box_height, width=w, color=BACKGROUND_COLOR)
             text_box = self.put_text(text_box, '\n'.join([x for x in lines]),
-                                     x=diff // 2, y=15,
-                                     font=font, color=(0, 0, 0))
+                                     x=horizontal_offset // 2, y=vertical_offset // 2,
+                                     font=font, color=TEXT_COLOR)
 
             border = int(h * 0.025)
-            header = np.ones(shape=(border, w, 3), dtype=np.uint8) * 255
+            # header = np.ones(shape=(border, w, 3), dtype=np.uint8) * 255
+            header = self.background(height=border, width=w, color=BACKGROUND_COLOR)
             captioned = np.vstack([header, self.image, text_box])
 
             oh, ow, _ = captioned.shape
-            side = np.ones(shape=(oh, border, 3), dtype=np.uint8) * 255
+            # side = np.ones(shape=(oh, border, 3), dtype=np.uint8) * 255
+            side = self.background(height=oh, width=border, color=BACKGROUND_COLOR)
             bordered = np.hstack([side, captioned, side])
             return bordered
 
