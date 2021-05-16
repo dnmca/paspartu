@@ -18,6 +18,7 @@ from PyQt5.QtGui import *
 
 
 TEXT_WIDTH = 60
+FONT_PATH = 'fonts/Ubuntu_Mono/UbuntuMono-Regular.ttf'
 
 
 class Model:
@@ -63,7 +64,7 @@ class Model:
 
     @lru_cache(maxsize=64)
     def get_font(self, font_size):
-        return ImageFont.truetype('fonts/Ubuntu_Mono/UbuntuMono-Regular.ttf', font_size)
+        return ImageFont.truetype(FONT_PATH, font_size)
 
     def get_image_with_text(self, text):
 
