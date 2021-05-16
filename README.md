@@ -24,12 +24,12 @@ Besides messages on the back of the photographs, the most important "photo metad
 memories of your elder relatives. But memory is fragile thing, as well as human life. 
 It is lost if it is not preserved in time.
 
-I came to me that it's really important to preserve down old photos' stories for my ancestors 
-(or other relatives interested in our family history). And I wanted to do it as soon as possible, before
+I came to me that it's really important to preserve old photos' stories for my ancestors 
+(or other relatives interested in our family history). And I wanted to do it as soon as possible, while
 people who can tell these stories are still alive.
  
- This led to the creation of this tool. I wanted it to be simple, fast and offline. So in case you consider its 
- functionality limited, it is so by design.  
+ This led to the creation of this tool. I wanted it to be simple, fast and offline. So in case its functionality
+ seems limited to you, it is so by design. 
 
 ### Tool
 
