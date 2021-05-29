@@ -33,21 +33,12 @@ people who can tell these stories are still alive.
 
 ### Tool
 
-This tool allows you to add arbitrary-size caption to your photos without losing 
-image quality.
+This tool allows you to save text annotations to your photos in the form of plain text files 
+or [passe-partout](https://en.wikipedia.org/wiki/Mat_(picture_framing))-like captioned framing.
 
-<img src="./images/modified.jpg" alt="drawing" width="400"/>
+<img src="./images/ui.png" alt="drawing" width="400"/>
 
 Functionality:
-
-- Zoom in/out (`Ctrl +`/`Ctrl -`)
-- Supported formats: PNG and JPEG
-- Original image quality is preserved
-- Original image is backuped
-- Tune `TEXT_WIDTH` (# of characters per line) constant to control font size
-- Change `FONT_PATH` constant to use your custom font
-- Tune font color with `TEXT_COLOR` (RGB)
-- Tune background color with `BACKGROUND_COLOR` (RGB)
 
 ### Workflow
 
@@ -64,11 +55,12 @@ Functionality:
     ```shell script
     python paspartu.py
     ```
-3) Open image (`Open` button)
-4) Enter text in text box
-5) Save captioned image (`Save` button)
-> 2 folders are created in image parent directory: `target` and `backup`. 
-> Former for captioned images and later for original ones.
+3) Open folder with your images (it can take a bit since all images are loaded into memory).
+4) Go through images, add notes, dates, etc.
+5) Save photo metadata by clicking `Save text` or `Save photo`.
+
+> 2 folders are created in chosen directory: `target` and `annotations`. 
+> Former for captioned images and later for text annotation files.
 
 ### Contribution
 

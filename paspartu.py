@@ -2,7 +2,6 @@
 import cv2
 import sys
 import typing
-import shutil
 import textwrap
 
 import numpy as np
@@ -17,6 +16,9 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
+# TODO: add possibility to choose fonts / font size
+# TODO: add possibility to choose colors
+
 
 TEXT_WIDTH = 60
 FONT_PATH = 'fonts/Ubuntu_Mono/UbuntuMono-Regular.ttf'
@@ -28,6 +30,11 @@ class Model:
 
     def __init__(self):
         self.reset()
+
+    def is_valid(self):
+        if len(self.idx2name) > 0:
+            return True
+        return False
 
     def reset(self):
         self.data_path = None
@@ -85,9 +92,6 @@ class Model:
         self.anno_path = self.data_path / 'annotation'
         self.target_path = self.data_path / 'target'
 
-        self.anno_path.mkdir(exist_ok=True)
-        self.target_path.mkdir(exist_ok=True)
-
         image_paths = []
 
         for pattern in [
@@ -105,6 +109,9 @@ class Model:
         if len(image_paths) == 0:
             return False
 
+        self.anno_path.mkdir(exist_ok=True)
+        self.target_path.mkdir(exist_ok=True)
+
         for index, image_path in enumerate(image_paths):
             img_name = image_path.stem
             self.idx2name[index] = img_name
@@ -113,7 +120,8 @@ class Model:
             self.idx2image[index] = image
 
             anno = self.read_anno_by_idx(index)
-            self.idx2anno[index] = anno
+            if anno is not None:
+                self.idx2anno[index] = anno
 
         self.current_idx = 0
         return True
@@ -229,18 +237,22 @@ class Controller:
         self.model.set_annotation(idx, text)
 
     def save_image(self):
-        self.model.save_image()
+        if self.model.is_valid():
+            self.model.save_image()
 
     def save_text(self):
-        self.model.save_text()
+        if self.model.is_valid():
+            self.model.save_text()
 
     def next_frame(self):
-        self.model.next()
-        self.on_frame_update()
+        if self.model.is_valid():
+            self.model.next()
+            self.on_frame_update()
 
     def prev_frame(self):
-        self.model.prev()
-        self.on_frame_update()
+        if self.model.is_valid():
+            self.model.prev()
+            self.on_frame_update()
 
     def on_zoom_in(self):
         self.update_views(hint='zoom_in')
