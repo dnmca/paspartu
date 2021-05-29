@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 from fire import Fire
 from pathlib import Path
 from functools import lru_cache
+from typing import Union
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -26,43 +27,113 @@ TEXT_COLOR = (0, 0, 0)
 class Model:
 
     def __init__(self):
-        self.image_path = None
-        self.image_name = None
-        self.image = None
+        self.reset()
 
-        self.target_dir = None
+    def reset(self):
+        self.data_path = None
+        self.anno_path = None
+        self.target_path = None
 
-    def open_image(self, image_path):
+        self.idx2name = {}
+        self.idx2anno = {}
+        self.idx2image = {}
+        self.current_idx = 0
 
-        self.image_path = Path(image_path)
-        self.image_name = self.image_path.name
-        self.target_dir = self.image_path.parent / 'target'
-        self.backup_dir = self.image_path.parent / 'backup'
+    def get_current_idx(self):
+        return self.current_idx
 
-        self.target_dir.mkdir(exist_ok=True)
-        self.backup_dir.mkdir(exist_ok=True)
-
-        try:
-            image = cv2.imread(image_path)
-        except:
-            return False
-
-        if image is not None:
-            self.image = image
+    def all_changes_saved(self, idx):
+        anno = self.read_anno_by_idx(idx)
+        if anno is not None and anno == self.idx2anno[idx]:
             return True
-        else:
+        return False
+
+    def next(self):
+        if self.current_idx + 1 in self.idx2image:
+            self.current_idx += 1
+
+    def prev(self):
+        if self.current_idx - 1 in self.idx2image:
+            self.current_idx -= 1
+
+    def get_image(self, idx):
+        return self.idx2image[idx]
+
+    def get_images(self, idx, offset=3):
+        return {i: frame for i, frame in self.idx2image.items() if abs(idx - i) <= 3}
+
+    def read_anno_by_idx(self, idx) -> Union[str, None]:
+
+        anno_file = self.anno_path / f'{self.idx2name[idx]}.txt'
+        if anno_file.exists():
+            with open(str(anno_file), 'r') as file:
+                return file.read()
+        return None
+
+    def get_annotation(self, idx):
+        if idx not in self.idx2anno:
+            self.idx2anno[idx] = ''
+        return self.idx2anno[idx]
+
+    def set_annotation(self, idx, anno):
+        self.idx2anno[idx] = anno
+
+    def open_folder(self, data_path):
+        self.reset()
+
+        self.data_path = Path(data_path)
+        self.anno_path = self.data_path / 'annotation'
+        self.target_path = self.data_path / 'target'
+
+        self.anno_path.mkdir(exist_ok=True)
+        self.target_path.mkdir(exist_ok=True)
+
+        image_paths = []
+
+        for pattern in [
+            '*.png',
+            '*.PNG',
+            '*.jpeg',
+            '*.JPEG',
+            '*.jpg',
+            '*.JPG'
+        ]:
+            image_paths.extend([x for x in self.data_path.glob(pattern)])
+
+        image_paths = sorted(image_paths)
+
+        if len(image_paths) == 0:
             return False
 
-    def save_image(self, text):
-        image_with_text = self.get_image_with_text(text)
-        cv2.imwrite(str(self.target_dir / self.image_name), image_with_text)
+        for index, image_path in enumerate(image_paths):
+            img_name = image_path.stem
+            self.idx2name[index] = img_name
 
-        if self.image_path.exists():
-            shutil.move(str(self.image_path), str(self.backup_dir / self.image_name))
+            image = cv2.imread(str(image_path))
+            self.idx2image[index] = image
 
-    def get_image(self):
-        if self.image is not None:
-            return self.image
+            anno = self.read_anno_by_idx(index)
+            self.idx2anno[index] = anno
+
+        self.current_idx = 0
+        return True
+
+    def save_text(self):
+
+        text = self.idx2anno[self.current_idx]
+
+        if len(text) == 0:
+            return
+
+        annotation_file = self.anno_path / f'{self.idx2name[self.current_idx]}.txt'
+        with open(str(annotation_file), 'w') as file:
+            file.write(text)
+
+    def save_image(self):
+        image = self.idx2image[self.current_idx]
+        text = self.idx2anno[self.current_idx]
+        image_with_text = self.get_image_with_text(image, text)
+        cv2.imwrite(str(self.target_path / f'{self.idx2name[self.current_idx]}.png'), image_with_text)
 
     @lru_cache(maxsize=64)
     def get_font(self, font_size):
@@ -75,13 +146,14 @@ class Model:
             img[:, :, i] = img[:, :, i] * c
         return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-    def get_image_with_text(self, text):
+    def get_image_with_text(self, image, text):
 
-        if self.image is not None:
-            h, w, _ = self.image.shape
+        if image is not None:
+            h, w, _ = image.shape
 
             lines = []
 
+            # TODO: problem with interim space
             for line in text.split('\n'):
                 if len(line) > TEXT_WIDTH:
                     lines.extend([l for l in textwrap.wrap(line, width=TEXT_WIDTH)])
@@ -115,7 +187,7 @@ class Model:
 
             border = int(h * 0.025)
             header = self.background(height=border, width=w, color=BACKGROUND_COLOR)
-            captioned = np.vstack([header, self.image, text_box])
+            captioned = np.vstack([header, image, text_box])
 
             oh, ow, _ = captioned.shape
             side = self.background(height=oh, width=border, color=BACKGROUND_COLOR)
@@ -144,19 +216,31 @@ class Controller:
         for view in self.views:
             view.update_view(hint, data)
 
-    def update_text(self, text):
-        self.update_views(hint='frame', data={'text': text})
-
-    def on_frame_update(self, text):
-        self.update_views('frame', data={'text': text})
-
-    def open_image(self, image_path, text):
-        status = self.model.open_image(image_path)
+    def open_folder(self, folder_path):
+        status = self.model.open_folder(folder_path)
         if status:
-            self.on_frame_update(text)
+            self.on_frame_update()
 
-    def save_image(self, text):
-        self.model.save_image(text)
+    def on_frame_update(self):
+        self.update_views('frame', None)
+
+    def on_text_change(self, text):
+        idx = self.model.get_current_idx()
+        self.model.set_annotation(idx, text)
+
+    def save_image(self):
+        self.model.save_image()
+
+    def save_text(self):
+        self.model.save_text()
+
+    def next_frame(self):
+        self.model.next()
+        self.on_frame_update()
+
+    def prev_frame(self):
+        self.model.prev()
+        self.on_frame_update()
 
     def on_zoom_in(self):
         self.update_views(hint='zoom_in')
@@ -171,12 +255,29 @@ class Application(QApplication):
     def __init__(self, argv: typing.List[str]):
         super().__init__(argv)
 
+    def notify(self, receiver, e):
+        if e.type() == QEvent.KeyPress:
+            if e.key() == Qt.Key_Left:
+                self.key_pressed_signal.emit(e)
+                return True
+            elif e.key() == Qt.Key_Right:
+                self.key_pressed_signal.emit(e)
+                return True
+
+        return QApplication.notify(self, receiver, e)
+
 
 class UI(QObject):
 
     def setup_ui(self, main_window):
+
+        main_window.setStyleSheet('background: white')
+
+        font = QFont()
+        font.setFamily("Ubuntu Mono")
+        font.setPointSize(14)
+
         main_window.setWindowTitle('Paspartu')
-        main_window.resize(1920, 1080)
 
         self.central_widget = QWidget(main_window)
         self.central_widget.setObjectName('central_widget')
@@ -185,54 +286,59 @@ class UI(QObject):
 
         self.main = QWidget(self.central_widget)
         self.main.setObjectName('main')
-
         self.main_layout = QVBoxLayout(self.main)
 
-        self.menu = QWidget(self.main)
-        self.menu.setMinimumHeight(50)
-        self.menu.setObjectName('tools')
+        self.tool_bar = QToolBar()
+        self.tool_bar.setFont(font)
 
-        self.open_image = QPushButton(self.menu)
-        self.open_image.setGeometry(QRect(20, 0, 120, 45))
-        self.open_image.setObjectName('open_image')
+        self.open_folder = QPushButton()
+        self.open_folder.setFixedHeight(50)
+        self.tool_bar.addWidget(self.open_folder)
 
-        self.save_image = QPushButton(self.menu)
-        self.save_image.setGeometry(QRect(160, 0, 120, 45))
-        self.save_image.setObjectName('save_image')
+        self.tool_bar.addSeparator()
 
-        font = QFont()
-        font.setFamily("Ubuntu Mono")
-        font.setPointSize(14)
+        self.prev_frame = QPushButton()
+        self.prev_frame.setFixedHeight(50)
+        self.prev_frame.setToolTip('Key Left')
+        self.tool_bar.addWidget(self.prev_frame)
 
-        self.menu.setFont(font)
+        self.next_frame = QPushButton()
+        self.next_frame.setFixedHeight(50)
+        self.next_frame.setToolTip('Key Right')
+        self.tool_bar.addWidget(self.next_frame)
+
+        self.tool_bar.addSeparator()
+
+        self.save_image = QPushButton()
+        self.save_image.setFixedHeight(50)
+        self.tool_bar.addWidget(self.save_image)
+
+        self.save_text = QPushButton()
+        self.save_text.setFixedHeight(50)
+        self.tool_bar.addWidget(self.save_text)
+
+        # sequence visualization
+        self.sequence_view = SequenceView(self.main)
+        self.sequence_view.setMaximumHeight(150)
+        self.sequence_view.setFixedWidth(770)
 
         self.image_view = ImageView(self.main)
-        self.image_view.setObjectName('frameView')
         self.image_view.setMaximumHeight(720)
+        self.image_view.setMinimumWidth(900)
         self.image_view.setStyleSheet("background: transparent")
 
-        self.text_box = QTextEdit(self.main)
-        self.text_box.setObjectName(('textBox'))
+        self.text_box = TextEditView(self.main)
         self.text_box.setMaximumHeight(120)
+        self.text_box.setFixedWidth(770)
         self.text_box.setFont(font)
 
-        self.annotation_layout = QVBoxLayout(self.main)
-
-        self.annotation = QWidget(self.main)
-
-        for x in [
+        for w in [
+            self.tool_bar,
+            self.sequence_view,
             self.image_view,
             self.text_box
         ]:
-            self.annotation_layout.addWidget(x)
-
-        self.annotation.setLayout(self.annotation_layout)
-
-        for x in [
-            self.menu,
-            self.annotation
-        ]:
-            self.main_layout.addWidget(x)
+            self.main_layout.addWidget(w, alignment=Qt.AlignHCenter)
 
         for w in [
             self.main,
@@ -251,8 +357,29 @@ class UI(QObject):
 
     def retranslate_ui(self):
         _translate = QCoreApplication.translate
-        self.open_image.setText(_translate('Wrapper', 'Open'))
-        self.save_image.setText(_translate('Wrapper', 'Save'))
+        self.open_folder.setText(_translate('Wrapper', 'Open\nfolder'))
+        self.prev_frame.setText(_translate('Wrapper', '<'))
+        self.next_frame.setText(_translate('Wrapper', '>'))
+        self.save_text.setText(_translate('Wrapper', 'Save\ntext'))
+        self.save_image.setText(_translate('Wrapper', 'Save\nimage'))
+
+
+class TextEditView(QTextEdit):
+
+    def __init__(self, parent):
+        super().__init__(parent=parent)
+
+    def set_model(self, model):
+        self.model = model
+
+    def set_controller(self, controller):
+        self.controller = controller
+
+    def update_view(self, hint, data):
+        if hint == 'frame':
+            idx = self.model.get_current_idx()
+            anno = self.model.get_annotation(idx)
+            self.setPlainText(anno)
 
 
 class ImageView(QGraphicsView):
@@ -262,6 +389,7 @@ class ImageView(QGraphicsView):
         self.controller = None
         self.scale = 1.0
 
+        self.curr_idx = None
         self.img = None
 
         self.scene = QGraphicsScene(self)
@@ -275,7 +403,9 @@ class ImageView(QGraphicsView):
 
     def update_view(self, hint, data):
         if hint == "frame":
-            self.img = self.model.get_image_with_text(data['text'])
+            self.curr_idx = self.model.get_current_idx()
+            self.img = self.model.get_image(self.curr_idx)
+
         elif hint == "zoom_in":
             if self.scale < 3.0:
                 self.scale += 0.1
@@ -300,6 +430,88 @@ class ImageView(QGraphicsView):
         pixmap.setTransformationMode(Qt.SmoothTransformation)
 
 
+class SequenceView(QGraphicsView):
+    def __init__(self, parent):
+        QGraphicsView.__init__(self, parent=parent)
+        self.model: Model = None
+        self.controller: Controller = None
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
+        self.setStyleSheet("background: transparent")
+
+    def set_model(self, model: Model):
+        self.model = model
+
+    def set_controller(self, controller):
+        self.controller = controller
+
+    def add_padding(self, img, color, size):
+        return cv2.copyMakeBorder(img, size, size, size, size, cv2.BORDER_CONSTANT, value=color)
+
+    def plot_text(self, image, x, y, text, font_size):
+        img = Image.fromarray(image)
+        draw = ImageDraw.Draw(img)
+        font = ImageFont.truetype(FONT_PATH, font_size)
+        draw.text((x, y), text, fill=(255, 255, 255), anchor="lb", font=font, align='left')
+        return np.array(img)
+
+    def update_view(self, hint, data):
+
+        def get_square_crop(image):
+            height, width, _ = image.shape
+            base = height if height <= width else width
+            base -= 5
+            cx = width // 2
+            cy = height // 2
+            x0 = cx - base // 2
+            x1 = cx + base // 2
+            y0 = cy - base // 2
+            y1 = cy + base // 2
+            return image[y0:y1, x0:x1, :]
+
+        if hint == 'frame':
+            current_idx = self.model.get_current_idx()
+            idx_to_image = self.model.get_images(current_idx)
+
+            resized_images = []
+
+            for index in range(current_idx - 3, current_idx + 4):
+                if index in idx_to_image:
+                    img = idx_to_image[index]
+                    crop = get_square_crop(img)
+                    crop = cv2.resize(crop, dsize=(100, 100))
+
+                    img = self.plot_text(crop, x=10, y=90, text=f'{index + 1}', font_size=30)
+
+                    if self.model.all_changes_saved(index):
+                        gray = np.zeros_like(img)
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        gray[:, :, 0] = img
+                        gray[:, :, 1] = img
+                        gray[:, :, 2] = img
+                        img = gray
+                else:
+                    img = np.ones(shape=(100, 100, 3), dtype=np.uint8) * 255
+
+                border_color = [153, 153, 0] if index == current_idx else [255, 255, 255]
+                img = self.add_padding(img, color=border_color, size=5)
+                resized_images.append(img)
+
+            seq_img = cv2.hconcat(resized_images)
+            self.set_image(seq_img)
+
+    def set_image(self, image):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width, colors = image.shape
+        bytesPerLine = 3 * width
+        qimage = QImage(image.data, width, height, bytesPerLine, QImage.Format_RGB888)
+        self.scene.clear()
+        pixmap = self.scene.addPixmap(QPixmap.fromImage(qimage))
+        self.ensureVisible(self.scene.sceneRect())
+        self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+        pixmap.setTransformationMode(Qt.SmoothTransformation)
+
+
 class MainWindowUI(UI):
 
     def __init__(self):
@@ -310,19 +522,24 @@ class MainWindowUI(UI):
     def setup_ui(self, main_window):
         super().setup_ui(main_window)
         self.ui = main_window
-        self.open_image.clicked.connect(self.open_image_clicked)
+        self.open_folder.clicked.connect(self.open_folder_clicked)
         self.save_image.clicked.connect(self.save_image_clicked)
+        self.save_text.clicked.connect(self.save_text_clicked)
+        self.prev_frame.clicked.connect(self.prev_frame_clicked)
+        self.next_frame.clicked.connect(self.next_frame_clicked)
+
         self.controller.add_view(self)
         self.controller.add_view(self.image_view)
+        self.controller.add_view(self.sequence_view)
+        self.controller.add_view(self.text_box)
 
         self.zoom_in.activated.connect(self.on_zoom_in)
         self.zoom_out.activated.connect(self.on_zoom_out)
+        self.text_box.textChanged.connect(self.on_text_changed)
 
-        self.text_box.textChanged.connect(self.text_changed)
-
-    def text_changed(self):
+    def on_text_changed(self):
         text = self.text_box.toPlainText()
-        self.controller.update_text(text)
+        self.controller.on_text_change(text)
 
     @pyqtSlot()
     def on_zoom_in(self):
@@ -332,23 +549,37 @@ class MainWindowUI(UI):
     def on_zoom_out(self):
         self.controller.on_zoom_out()
 
-    def open_image_clicked(self):
+    def open_folder_clicked(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
+        options |= QFileDialog.ShowDirsOnly
         options |= QFileDialog.DontResolveSymlinks
-        image_path, _ = QFileDialog.getOpenFileName(
+        folder_path = QFileDialog.getExistingDirectory(
             self.ui,
-            "Open image",
-            str(Path.home() / 'Desktop'),
-            "Image (*.png *.jpeg *.jpg *.PNG *.JPEG *.JPG)",
+            "Open Folder",
+            "/home/andrii/Desktop/hands",
             options=options)
 
-        if image_path:
-            self.controller.open_image(image_path, text=self.text_box.toPlainText())
+        if folder_path:
+            self.controller.open_folder(folder_path)
+
+    def next_frame_clicked(self):
+        self.controller.next_frame()
+
+    def prev_frame_clicked(self):
+        self.controller.prev_frame()
 
     def save_image_clicked(self):
-        text = self.text_box.toPlainText()
-        self.controller.save_image(text)
+        self.controller.save_image()
+
+    def save_text_clicked(self):
+        self.controller.save_text()
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Left:
+            self.prev_frame_clicked()
+        elif e.key() == Qt.Key_Right:
+            self.next_frame_clicked()
 
     def set_model(self, model):
         pass
@@ -375,6 +606,7 @@ def main(text_width=60):
     main_window = QMainWindow()
     ui = MainWindowUI()
     ui.setup_ui(main_window)
+    app.key_pressed_signal.connect(ui.keyPressEvent)
     main_window.show()
     sys.exit(app.exec_())
 
