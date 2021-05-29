@@ -38,8 +38,6 @@ or [passe-partout](https://en.wikipedia.org/wiki/Mat_(picture_framing))-like cap
 
 <img src="./images/ui.png" alt="drawing" width="400"/>
 
-Functionality:
-
 ### Workflow
 
 0) Prerequisites:
@@ -57,7 +55,7 @@ Functionality:
     ```
 3) Open folder with your images (it can take a bit since all images are loaded into memory).
 4) Go through images, add notes, dates, etc.
-5) Save photo metadata by clicking `Save text` or `Save photo`.
+5) Save photo metadata by clicking `Save text` or `Save photo` (Images with saved text become greyscale).
 
 > 2 folders are created in chosen directory: `target` and `annotations`. 
 > Former for captioned images and later for text annotation files.
@@ -66,4 +64,3 @@ Functionality:
 
 Feel free to contribute to this project if you like it.
 Any suggestions, comments or bug reports are appreciated.
-
