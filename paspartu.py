@@ -18,6 +18,7 @@ from PyQt5.QtGui import *
 
 # TODO: add possibility to choose fonts / font size
 # TODO: add possibility to choose colors
+# TODO: remove pyqtSlot
 
 
 TEXT_WIDTH = 60
@@ -43,7 +44,8 @@ class Model:
 
         self.idx2name = {}
         self.idx2anno = {}
-        self.idx2image = {}
+        self.idx2path = {}
+        self.idx2img = {}
         self.current_idx = 0
 
     def get_current_idx(self):
@@ -56,18 +58,27 @@ class Model:
         return False
 
     def next(self):
-        if self.current_idx + 1 in self.idx2image:
+        if self.current_idx + 1 in self.idx2img:
             self.current_idx += 1
 
     def prev(self):
-        if self.current_idx - 1 in self.idx2image:
+        if self.current_idx - 1 in self.idx2img:
             self.current_idx -= 1
 
     def get_image(self, idx):
-        return self.idx2image[idx]
+        if idx in self.idx2img:
+            return self.idx2img[idx]
+        else:
+            image = cv2.imread(self.idx2path[idx])
+            self.idx2img[idx] = image
+            return image
 
     def get_images(self, idx, offset=3):
-        return {i: frame for i, frame in self.idx2image.items() if abs(idx - i) <= 3}
+        return {
+            img_idx: self.get_image(img_idx)
+            for img_idx in self.idx2name.keys()
+            if abs(idx - img_idx) <= offset
+        }
 
     def read_anno_by_idx(self, idx) -> Union[str, None]:
 
@@ -115,9 +126,7 @@ class Model:
         for index, image_path in enumerate(image_paths):
             img_name = image_path.stem
             self.idx2name[index] = img_name
-
-            image = cv2.imread(str(image_path))
-            self.idx2image[index] = image
+            self.idx2path[index] = str(image_path)
 
             anno = self.read_anno_by_idx(index)
             if anno is not None:
@@ -138,7 +147,7 @@ class Model:
             file.write(text)
 
     def save_image(self):
-        image = self.idx2image[self.current_idx]
+        image = self.idx2img[self.current_idx]
         text = self.idx2anno[self.current_idx]
         image_with_text = self.get_image_with_text(image, text)
         cv2.imwrite(str(self.target_path / f'{self.idx2name[self.current_idx]}.png'), image_with_text)
@@ -601,12 +610,6 @@ class MainWindowUI(UI):
     def save_text_clicked(self):
         self.controller.save_text()
 
-    # def keyPressEvent(self, e):
-    #     if e.key() == Qt.Key_Left:
-    #         self.prev_frame_clicked()
-    #     elif e.key() == Qt.Key_Right:
-    #         self.next_frame_clicked()
-
     def set_model(self, model):
         pass
 
@@ -632,7 +635,6 @@ def main(text_width=60):
     main_window = QMainWindow()
     ui = MainWindowUI()
     ui.setup_ui(main_window)
-    # app.key_pressed_signal.connect(ui.keyPressEvent)
     main_window.show()
     sys.exit(app.exec_())
 
