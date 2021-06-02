@@ -38,6 +38,18 @@ or [passe-partout](https://en.wikipedia.org/wiki/Mat_(picture_framing))-like cap
 
 <img src="./images/ui.png" alt="drawing" width="400"/>
 
+Functionality:
+
+| Key or shortcut | Function |
+|:---           |:---      |
+|`Ctrl+=` shortcut or `+` button    | increase scale |
+|`Ctrl+-` shortcut or `-` button     | decrease scale |
+|`Alt+Left` shortcut or `<` button    | move to left image |
+|`Alt+Right` shortcut or `>` button   | move to right image |
+|`Open folder` button | open folder with images for annotation |
+|`Save text` button | save image annotation as a text file in `annotation` folder |
+|`Save image` button| save image with a frame and a captino in `target` folder |
+
 ### Workflow
 
 0) Prerequisites:

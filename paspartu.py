@@ -262,19 +262,11 @@ class Controller:
 
 
 class Application(QApplication):
-    key_pressed_signal = pyqtSignal(object)
 
     def __init__(self, argv: typing.List[str]):
         super().__init__(argv)
 
     def notify(self, receiver, e):
-        if e.type() == QEvent.KeyPress:
-            if e.key() == Qt.Key_Left:
-                self.key_pressed_signal.emit(e)
-                return True
-            elif e.key() == Qt.Key_Right:
-                self.key_pressed_signal.emit(e)
-                return True
 
         return QApplication.notify(self, receiver, e)
 
@@ -311,12 +303,12 @@ class UI(QObject):
 
         self.prev_frame = QPushButton()
         self.prev_frame.setFixedHeight(50)
-        self.prev_frame.setToolTip('Key Left')
+        self.prev_frame.setToolTip('Alt + Left')
         self.tool_bar.addWidget(self.prev_frame)
 
         self.next_frame = QPushButton()
         self.next_frame.setFixedHeight(50)
-        self.next_frame.setToolTip('Key Right')
+        self.next_frame.setToolTip('Alt + Right')
         self.tool_bar.addWidget(self.next_frame)
 
         self.tool_bar.addSeparator()
@@ -328,6 +320,18 @@ class UI(QObject):
         self.save_text = QPushButton()
         self.save_text.setFixedHeight(50)
         self.tool_bar.addWidget(self.save_text)
+
+        self.tool_bar.addSeparator()
+
+        self.zoom_in_b = QPushButton()
+        self.zoom_in_b.setFixedHeight(50)
+        self.zoom_in_b.setFixedWidth(50)
+        self.tool_bar.addWidget(self.zoom_in_b)
+
+        self.zoom_out_b = QPushButton()
+        self.zoom_out_b.setFixedHeight(50)
+        self.zoom_out_b.setFixedWidth(50)
+        self.tool_bar.addWidget(self.zoom_out_b)
 
         # sequence visualization
         self.sequence_view = SequenceView(self.main)
@@ -360,6 +364,9 @@ class UI(QObject):
         self.zoom_in = QShortcut(QKeySequence('Ctrl+='), self.central_widget)
         self.zoom_out = QShortcut(QKeySequence('Ctrl+-'), self.central_widget)
 
+        self.prev = QShortcut(QKeySequence('Alt+Left'), self.central_widget)
+        self.next = QShortcut(QKeySequence('Alt+Right'), self.central_widget)
+
         self.central_widget.setLayout(self.central_layout)
         main_window.setCentralWidget(self.central_widget)
 
@@ -374,6 +381,8 @@ class UI(QObject):
         self.next_frame.setText(_translate('Wrapper', '>'))
         self.save_text.setText(_translate('Wrapper', 'Save\ntext'))
         self.save_image.setText(_translate('Wrapper', 'Save\nimage'))
+        self.zoom_in_b.setText(_translate('Wrapper', '+'))
+        self.zoom_out_b.setText(_translate('Wrapper', '-'))
 
 
 class TextEditView(QTextEdit):
@@ -539,6 +548,8 @@ class MainWindowUI(UI):
         self.save_text.clicked.connect(self.save_text_clicked)
         self.prev_frame.clicked.connect(self.prev_frame_clicked)
         self.next_frame.clicked.connect(self.next_frame_clicked)
+        self.zoom_in_b.clicked.connect(self.on_zoom_in)
+        self.zoom_out_b.clicked.connect(self.on_zoom_out)
 
         self.controller.add_view(self)
         self.controller.add_view(self.image_view)
@@ -547,6 +558,9 @@ class MainWindowUI(UI):
 
         self.zoom_in.activated.connect(self.on_zoom_in)
         self.zoom_out.activated.connect(self.on_zoom_out)
+        self.next.activated.connect(self.next_frame_clicked)
+        self.prev.activated.connect(self.prev_frame_clicked)
+
         self.text_box.textChanged.connect(self.on_text_changed)
 
     def on_text_changed(self):
@@ -587,11 +601,11 @@ class MainWindowUI(UI):
     def save_text_clicked(self):
         self.controller.save_text()
 
-    def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Left:
-            self.prev_frame_clicked()
-        elif e.key() == Qt.Key_Right:
-            self.next_frame_clicked()
+    # def keyPressEvent(self, e):
+    #     if e.key() == Qt.Key_Left:
+    #         self.prev_frame_clicked()
+    #     elif e.key() == Qt.Key_Right:
+    #         self.next_frame_clicked()
 
     def set_model(self, model):
         pass
@@ -618,7 +632,7 @@ def main(text_width=60):
     main_window = QMainWindow()
     ui = MainWindowUI()
     ui.setup_ui(main_window)
-    app.key_pressed_signal.connect(ui.keyPressEvent)
+    # app.key_pressed_signal.connect(ui.keyPressEvent)
     main_window.show()
     sys.exit(app.exec_())
 
