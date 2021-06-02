@@ -48,7 +48,7 @@ Functionality:
 |`Alt+Right` shortcut or `>` button   | move to right image |
 |`Open folder` button | open folder with images for annotation |
 |`Save text` button | save image annotation as a text file in `annotation` folder |
-|`Save image` button| save image with a frame and a captino in `target` folder |
+|`Save image` button| save image with a frame and a caption in `target` folder |
 
 ### Workflow
 
@@ -65,9 +65,9 @@ Functionality:
     ```shell script
     python paspartu.py
     ```
-3) Open folder with your images (it can take a bit since all images are loaded into memory).
-4) Go through images, add notes, dates, etc.
-5) Save photo metadata by clicking `Save text` or `Save photo` (Images with saved text become greyscale).
+3) Open folder with your images.
+4) Go through images, adding notes, dates, etc.
+5) Save photo metadata by clicking `Save text` or `Save photo` (Images with saved text are being greyed out).
 
 > 2 folders are created in chosen directory: `target` and `annotations`. 
 > Former for captioned images and later for text annotation files.
